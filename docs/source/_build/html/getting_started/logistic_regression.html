@@ -1,0 +1,211 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Logistic Regression &#8212; ttic-31020 2019 documentation</title>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Welcome to Introduction to Machine Learning (ttic-31020)!" href="../index.html" />
+   
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="logistic-regression">
+<h1>Logistic Regression<a class="headerlink" href="#logistic-regression" title="Permalink to this headline">¶</a></h1>
+<p>In this section we’ll learn our first classification model class: logistic regression. As with linear regression, our approach will be to “invent” logistic regression for ourselves.</p>
+<p>Here’s how we’ll do that:</p>
+<ul class="simple">
+<li>Introduce 0/1 classification loss and the risk expression under this loss</li>
+<li>See that we minimise risk under 0/1 loss by choosing the class with largest posterior probability</li>
+<li>Derive the logistic function as a way to model the log probability ratio between two classes</li>
+<li>Derive expressions for log likelihood, surrogate loss, and the gradient-based learning rule</li>
+<li>Generalize logistic regression to multi-class scenarios using the softmax function</li>
+</ul>
+<div class="section" id="loss-risk">
+<h2>0/1 Loss &amp; Risk<a class="headerlink" href="#loss-risk" title="Permalink to this headline">¶</a></h2>
+<p>0/1 loss is exactly what it sounds like: if we predict the correct class, we suffer no loss, and if we’re wrong, we suffer loss equal 1. Formally:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}l(h(x),y) = 0  \quad \text{if } y = h(x) \\
+l(h(x),y) = 1 \quad \text{if } y \neq h(x)\end{split}\]</div>
+<div class="admonition-notation admonition">
+<p class="first admonition-title">Notation</p>
+<ul class="last simple">
+<li>l refers to loss</li>
+<li>h refers to our decision rule, it is a function of observation x</li>
+<li>y refers to the true label for observation x</li>
+</ul>
+</div>
+<p>The expression for the risk of 0/1 loss given a joint probability distribution and a classifier h(x) is:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}R(h) &amp;= \int_x \sum_{c=1}^{C} l(h(x),c) p(x,y=c)  dx \\
+&amp;= \int_x \sum_{c=1}^{C} l(h(x),c) p(y=c|x) p(x) dx \\
+&amp;= \int_x R(h|x) p(x) dx\end{split}\]</div>
+<p>Above we see that it in order to choose h to minimise R(h), it suffices to choose h which minimises R(h|x) for each x. For a given x:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}R(h|x) &amp;= \sum_{c=1}^{C} l(h(x),c) p(y=c|x) \\
+&amp;= 0 \cdot p(y=h(x)|x) + \sum_{c' \neq h(x)} 1 \cdot p(y=c'|x) \\
+&amp;= 1 - p(y=h(x)|x)\end{split}\]</div>
+<p>In words, the conditional risk of 0/1 loss is equal to the probability that your prediction h(x) is wrong. It’s now clear that the way to minimise R(h|x), and thus R(h), is by predicting for each x the class c with the largest posterior p(y=c|x). Formally, our optimal classifier <span class="math notranslate nohighlight">\(h^*\)</span> is given by:</p>
+<div class="math notranslate nohighlight">
+\[h^* (x) = \text{argmax}_c p(y=c|x)\]</div>
+<p>We can express <span class="math notranslate nohighlight">\(h^*\)</span> as a “decision rule” in terms of probability ratios:</p>
+<div class="math notranslate nohighlight">
+\[h^*(x)=c^* \quad \text{iff} \quad \forall c: log \Big ( \frac{p(y=c^*|x)}{p(y=c|x)} \Big) \geq 0\]</div>
+</div>
+<div class="section" id="logistic-regression-as-modelling-posteriors">
+<h2>Logistic Regression as modelling posteriors<a class="headerlink" href="#logistic-regression-as-modelling-posteriors" title="Permalink to this headline">¶</a></h2>
+<p>Let us now consider the binary classification scenario. Our work above tells us that the optimal classifier is described as follows:</p>
+<div class="math notranslate nohighlight">
+\[h^*(x) = 1 \quad \text{iff} \quad log \Big ( \frac{p(y=1|x)}{p(y=0|x)} \Big) \geq 0\]</div>
+<p>What we want now is to model the log probability ratio above using a linear function of x:</p>
+<div class="math notranslate nohighlight">
+\[w \cdot x = log \Big( \frac{p(y=1|x)}{p(y=0|x)} \Big)\]</div>
+<p>We can rearrange the equation to get an expression for the posterior:</p>
+<div class="math notranslate nohighlight">
+\[p(y=1|x) = \frac{1}{1+exp[-w\cdot x]}\]</div>
+<p>Notice that, as we’d expect, if <span class="math notranslate nohighlight">\(w \cdot x = 0\)</span>, then <span class="math notranslate nohighlight">\(p(y=1|x)=\frac{1}{2}\)</span>. That is, if we’re on the decision boundary, then both classes are equally likely.</p>
+</div>
+<div class="section" id="negative-log-likelihood-loss">
+<h2>Negative Log Likelihood Loss<a class="headerlink" href="#negative-log-likelihood-loss" title="Permalink to this headline">¶</a></h2>
+<p>We now turn to the problem of finding “good” w. Since the true joint probability distribution is not known, we cannot directly minimise risk. Instead, we do the next best thing: empricial risk minimisation - that is, we minimise the loss on some training dataset. Suppose we have been given a labeled dataset with N examples.</p>
+<div class="admonition-notation admonition">
+<p class="first admonition-title">Notation</p>
+<ul class="last simple">
+<li>X is the N-by-d matrix of training observations</li>
+<li>y is the N-dim vector of training labels</li>
+<li>w is the d-dim vector of weights</li>
+<li><span class="math notranslate nohighlight">\(\sigma (z)=\frac{1}{1+exp[-z]}\)</span> denotes the logistic function</li>
+</ul>
+</div>
+<p>It is computationally infeasible to directly minimise 0/1 loss so we instead employ a surrogate loss: negative log likelihood loss (i.e., we want to maximise the likelihood of the training examples). Negative log likelihood loss is given by:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}L(w) = - log p(y|X)
+&amp;= - \sum\limits_{i=1}^{N} y_i log(p(y_i=1|x_i)) + (1-y_i)log(p(y_i=0|x_i) \\
+&amp;= - \sum\limits_{i=1}^{N} y_i log(\sigma(w\cdot x_i)) + (1-y_i)log(1-\sigma(w\cdot x_i))\end{split}\]</div>
+<div class="figure align-center" id="id1">
+<img alt="../_images/logreg_surrogate.png" src="../_images/logreg_surrogate.png" />
+<p class="caption"><span class="caption-text">Comparison of the surrogate loss, the original loss, and square error loss (Shakhnarovich, Slide 7, 2018)</span></p>
+</div>
+<p>Notice that although the expression looks complicated, it’s actually quite simple. For each training example, we want to add the log likelihood of the label <span class="math notranslate nohighlight">\(y_i\)</span> given the observation <span class="math notranslate nohighlight">\(x_i\)</span>. The expressions <span class="math notranslate nohighlight">\(y_i\)</span> and <span class="math notranslate nohighlight">\((1-y_i)\)</span> effectively act as if statements that respectively say “if <span class="math notranslate nohighlight">\(y_i = 1\)</span>, add <span class="math notranslate nohighlight">\(log p(y_i=1|x_i)\)</span>” and “if <span class="math notranslate nohighlight">\(y_i = 0\)</span>, add <span class="math notranslate nohighlight">\(log p(y_i=0|x)\)</span>.”</p>
+<p>Now that we have this surrogate loss in place, we can derive a gradient-based learning rule for <span class="math notranslate nohighlight">\(w\)</span>. (After first doing the scalar partial derivative,) we get (the update is for a single training example):</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}- \nabla_w L(w; x_i,y_i) &amp;= [y_i - \sigma(w\cdot x_i)]x_i \\
+w^{t+1} &amp;= w^{t} - \eta \nabla_w L(w; x_i, y_i)\end{split}\]</div>
+<p>This learning rule has a nice, intuitive, geometric interpretation. Notice that geometrically, <span class="math notranslate nohighlight">\(w\)</span> represents the normal vector of the decision boundary (in the direction of training examples with <span class="math notranslate nohighlight">\(y_i = 1\)</span>).</p>
+<div class="figure align-center" id="id2">
+<img alt="../_images/logreg_geometry.png" src="../_images/logreg_geometry.png" />
+<p class="caption"><span class="caption-text">(Shakhnarovich, Slide 7, 2018)</span></p>
+</div>
+<p>Suppose we’re doing an update based on a single training example <span class="math notranslate nohighlight">\(x_i\)</span> with <span class="math notranslate nohighlight">\(y_i=1\)</span>. So the update equation is given by <span class="math notranslate nohighlight">\(w^{t+1} = w^{t} + [1-\sigma(w\cdot x_i)]x_i\)</span>. Since <span class="math notranslate nohighlight">\(0 &lt; \sigma(w\cdot x_i) &lt; 1\)</span>, the above update always adds a scaled version of <span class="math notranslate nohighlight">\(x_i\)</span> to <span class="math notranslate nohighlight">\(w\)</span>. This has the effect of “pulling” <span class="math notranslate nohighlight">\(w\)</span> towards <span class="math notranslate nohighlight">\(x_i\)</span> by some force. The magnitude of the force depends on how well the classifier currently classifies <span class="math notranslate nohighlight">\(x_i\)</span>. Consider the two extremes. If our classifier is doing very well, that is <span class="math notranslate nohighlight">\(\sigma(w\cdot x_i)\)</span> is close to 1, <span class="math notranslate nohighlight">\(x_i\)</span> hardly pulls on <span class="math notranslate nohighlight">\(w\)</span>. If our classifier is doing very poorly, that is <span class="math notranslate nohighlight">\(\sigma(w\cdot x_i)\)</span> is close to 0, <span class="math notranslate nohighlight">\(x_i\)</span> pulls very hard on <span class="math notranslate nohighlight">\(w\)</span>. Updates based on training examples with with <span class="math notranslate nohighlight">\(y_i = 0\)</span> “push” <span class="math notranslate nohighlight">\(w\)</span> instead of pulling it. Quick sanity check: how will the magnitude of the push depend on <span class="math notranslate nohighlight">\(\sigma(w\cdot x_i)\)</span> when <span class="math notranslate nohighlight">\(y_i = 0\)</span>?</p>
+<p>The net effect of all this pushing and pulling is that <span class="math notranslate nohighlight">\(w\)</span> will roughly point in the direction towards all the training examples with label <span class="math notranslate nohighlight">\(y_i=1\)</span> and away from all the training examples with label <span class="math notranslate nohighlight">\(y_i=0\)</span>.</p>
+</div>
+<div class="section" id="generalizing-to-multi-class-with-softmax">
+<h2>Generalizing to multi-class with softmax<a class="headerlink" href="#generalizing-to-multi-class-with-softmax" title="Permalink to this headline">¶</a></h2>
+<p>Notice that logistic regression only works in the binary classification case. But we can easily generalize to the multi-class scenario using the softmax distribution.</p>
+<div class="math notranslate nohighlight">
+\[p(y=c|x) = \frac{exp[w_c \cdot x]}{\sum\limits_{i=1}^{C} exp[w_i \cdot x]}\]</div>
+<p>Again, we use the negative log likelihood loss to get a learning rule.</p>
+<div class="admonition-notation admonition">
+<p class="first admonition-title">Notation</p>
+<p class="last"><span class="math notranslate nohighlight">\(\delta_{c y_i}=1\)</span> if <span class="math notranslate nohighlight">\(c = y_i\)</span>, else <span class="math notranslate nohighlight">\(\delta_{c y_i}=0\)</span>
+(Kronecker-Delta)</p>
+</div>
+<div class="math notranslate nohighlight">
+\[\begin{split}- \nabla_{w_c} L(w; x_i,y_i) &amp;= [\delta_{c y_i} - p(y=c|x_i)]x_i \\
+w^{t+1} &amp;= w^{t} - \eta \nabla_w L(w; x_i, y_i)\end{split}\]</div>
+<p>The geometric intuition we have for the binary class case still applies here in the multi-class case; <span class="math notranslate nohighlight">\(w_c\)</span> is “pulled” in by training examples with <span class="math notranslate nohighlight">\(y_i=c\)</span> and “pushed” away by all other training examples.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../index.html">ttic-31020</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Getting Started</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Logistic Regression</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#loss-risk">0/1 Loss &amp; Risk</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#logistic-regression-as-modelling-posteriors">Logistic Regression as modelling posteriors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#negative-log-likelihood-loss">Negative Log Likelihood Loss</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#generalizing-to-multi-class-with-softmax">Generalizing to multi-class with softmax</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="../index.html" title="previous chapter">Welcome to Introduction to Machine Learning (ttic-31020)!</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2018, Rheza Budiono, Greg Shakhnarovich.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.7.9</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.11</a>
+      
+      |
+      <a href="../_sources/getting_started/logistic_regression.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
